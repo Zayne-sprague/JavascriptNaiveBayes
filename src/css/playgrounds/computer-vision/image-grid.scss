@@ -1,0 +1,23 @@
+.image-grid-container{
+    width: fit-content;
+    height: fit-content;
+}
+
+.image-grid-container .image-grid-tt-container .border-box{
+    width: 32px;
+    height: 32px;
+
+    border: 1px solid red;
+}
+
+.image-grid-container .image-grid-tt-container .magnifier{
+    position: relative;
+    top: -135px;
+    left: 0px;
+
+    width: 125px;
+    height: 100px;
+
+    background:white;
+
+}

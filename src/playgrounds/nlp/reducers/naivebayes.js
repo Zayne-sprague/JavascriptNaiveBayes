@@ -40,9 +40,9 @@ export function build_feature_vectors(name, bow_model, biases){
       label_feature_vector[0] = Math.log(1 + biases[label]);
       let n = 0;
       _.map(bow_model, (row)=>{
-          if (row[0] == parseInt(label)){
+          if (row[0] === parseInt(label)){
               _.map(row, (i, j)=>{
-                  if (j != 0){
+                  if (j !== 0){
                       label_feature_vector[j] += row[j];
                   }
               })
@@ -52,7 +52,7 @@ export function build_feature_vectors(name, bow_model, biases){
       })
 
       _.map(label_feature_vector, (tmp, i)=>{
-          if (i != 0){
+          if (i !== 0){
               label_feature_vector[i] = Math.log(1 + (label_feature_vector[i] / n));
           }
       })

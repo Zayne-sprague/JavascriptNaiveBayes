@@ -1,9 +1,10 @@
 import { combineReducers } from 'redux'
-import docs from './docs'
-import bow from './bow'
-import naivebayes from "./naivebayes";
+import docs from '../playgrounds/nlp/reducers/docs'
+import bow from '../playgrounds/nlp/reducers/bow'
+import naivebayes from "../playgrounds/nlp/reducers/naivebayes";
+import image from '../playgrounds/computer-vision/reducers/image';
+
 import u from 'updeep';
-// import _ from 'lodash';
 
 export function set_control(updates){
     return {
@@ -35,5 +36,6 @@ export default combineReducers({
     controls,
     docs,
     bow,
-    naivebayes
+    naivebayes,
+    image
 })

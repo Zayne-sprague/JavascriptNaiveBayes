@@ -3,26 +3,36 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.10.4",
     "@reduxjs/toolkit": "^1.4.0",
     "@tensorflow/tfjs": "^2.3.0",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
     "d3-request": "^1.0.6",
+    "html-webpack-plugin": "^4.3.0",
     "lodash": "^4.17.20",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-redux": "^7.2.1",
     "react-router-dom": "^5.2.0",
     "react-scripts": "3.4.3",
+    "react-sticky-mouse-tooltip": "0.0.1",
     "redux-thunk": "^2.3.0",
-    "updeep": "^1.2.0"
+    "uglifyjs-webpack-plugin": "^2.2.0",
+    "updeep": "^1.2.0",
+    "uuid": "^8.3.0",
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.12"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "create-scss": "sass --watch --sourcemap=auto src/index.scss:public/style.css",
+    "build-scss": "sass --sourcemap=auto src/index.scss:public/style.css",
+    "watch-node": "webpack-dev-server --config ./webpack.config.js --mode development",
+    "start": "npm run create-scss &! npm run watch-node",
+    "start-windows": "npm run create-scss & npm run watch-node",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --config ./webpack.config.js --mode development "
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -41,5 +51,14 @@
   },
   "devDependencies": {
     "redux-devtools-extension": "^2.13.8"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env",
+      "@babel/preset-react"
+    ],
+    "plugins": [
+      "@babel/plugin-transform-react-jsx"
+    ]
   }
 }

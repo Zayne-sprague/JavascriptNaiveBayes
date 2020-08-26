@@ -1,39 +1,27 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
-import App from './App';
-import * as serviceWorker from './serviceWorker';
+import App from './containers/App';
 import { Provider } from 'react-redux'
-import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
-import TestComp from "./test-comp";
+import { HashRouter } from 'react-router-dom'
+import { Route } from 'react-router'
+
+import NaiveBayes from "./playgrounds/nlp/layouts/naivebayes";
 import configureStore from "./store/configureStore";
+import KeyPoints from "./playgrounds/computer-vision/layouts/key-points";
 
 const store = configureStore()
 window.store = store;
 
-const renderApp = () =>
-    ReactDOM.render(
-        <Provider store={store}>
-            <Router>
-                <Switch>
-                    <Route exact path={'/'} component={App} />
-                    <Route path={'/test'} component={TestComp}/>
-                </Switch>
-            </Router>
-        </Provider>
-        ,
+ReactDOM.render(
+    <Provider store={store}>
+        <HashRouter basename={'#'}>
+            <Route path={'/'} component={App}>
+                <Route path={'/naive-bayes'} component={NaiveBayes}/>
+                <Route path={'/nlp/key-points'} component={KeyPoints}/>
+            </Route>
+        </HashRouter>
+    </Provider>
+    ,
 
-        document.getElementById('root')
-    );
-
-
-if (process.env.NODE_ENV !== 'production' && module.hot) {
-    module.hot.accept('./App', renderApp)
-}
-
-renderApp();
-
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
-serviceWorker.unregister();
+    document.getElementById('app')
+);

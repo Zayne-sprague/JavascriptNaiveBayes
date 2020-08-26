@@ -1,8 +1,6 @@
 import u from 'updeep';
 import _ from 'lodash';
 
-import * as tf from '@tensorflow/tfjs';
-
 export function create_model(name){
     return {
         type: "CREATE_BOW_MODEL",
