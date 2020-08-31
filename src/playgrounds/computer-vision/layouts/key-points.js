@@ -7,12 +7,15 @@ import ImageCV from "../components/image";
 class KeyPoints extends Component {
 
     render() {
-        // const { controls } = this.props;
+        const { dispatch, image } = this.props;
+        const img1 = '/img/test2.jpg';
+        const img2 = '/img/cv_image_1.jpg';
+
         return (
             <div className={'key-points-container'}>
                 <h2>Key Points</h2>
-                <ImageGridCV>
-                    <ImageCV url={"/img/cv_image_1.jpg"} alt={'test image'}/>
+                <ImageGridCV image={image}>
+                    <ImageCV dispatch={dispatch} url={img2} alt={'test image'}/>
                 </ImageGridCV>
             </div>
         );

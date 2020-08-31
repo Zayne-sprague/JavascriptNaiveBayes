@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import {connect} from "react-redux";
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import {create_image} from "../reducers/image";
+import {create_image, loaded_image} from "../reducers/image";
 
 class ImageCV extends Component {
 
@@ -56,6 +56,8 @@ class ImageCV extends Component {
     }
 
     grayScale(){
+        const { dispatch } = this.props;
+
         const canvas = this.refs['canvas'];
         var context = canvas.getContext('2d');
 
@@ -72,6 +74,8 @@ class ImageCV extends Component {
         }
 
         context.putImageData(imageData, 0, 0);
+
+        dispatch(loaded_image(this.image_id));
     }
 }
 

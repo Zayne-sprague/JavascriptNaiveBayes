@@ -1,41 +1,70 @@
 import React, { Component } from 'react';
 import {connect} from "react-redux";
 import * as tf from '@tensorflow/tfjs';
-import {CREATE_GAUSS_KERNAL, GAUSSIAN_KERNAL_5X5} from "../util/kernals";
+import {CREATE_GAUSS_KERNAL, SOBEL_X_KERNEL, SOBEL_Y_KERNEL} from "../util/kernels";
+
+export const BOX_SIZE_OPTIONS = {
+    FULL_IMAGE: "full_image",
+}
+
+export const FILTERS = {
+    GUASSIAN_5X5: CREATE_GAUSS_KERNAL(5),
+    GUASSIAN_XX: CREATE_GAUSS_KERNAL,
+    SOBEL_X: SOBEL_X_KERNEL,
+    SOBEL_Y: SOBEL_Y_KERNEL
+}
 
 class SlidingWindow extends Component {
 
     constructor(props) {
         super(props);
 
-        const { image_id, slide=true, speed=0.001, width=32, height=32 } = this.props
+        if (_.get(props, 'image_id')){
+            this.set_up();
+        }
+    }
+
+    set_up(){
+        const {
+            image_id,
+            slide=true,
+            simple_matrix=null,
+            speed=0.0000001,
+            size=BOX_SIZE_OPTIONS.FULL_IMAGE,
+            filter = FILTERS.GUASSIAN_XX(32, 3)
+        } = this.props;
+
         this.canvas = document.getElementById(image_id)
-        this.simple_matrix = []
+        this.simple_matrix = simple_matrix ? simple_matrix : []
 
-        if (this.canvas){
-            this.slide_interval = null;
+        this.slide_interval = null;
 
-            let kernel = CREATE_GAUSS_KERNAL(width);
+        //let kernel = CREATE_GAUSS_KERNAL(width);
+        let kernel = filter
 
-            //TODO - look into why this doesn't work for the y pos??? Maybe we are relative
-            const origin_data = this.canvas.getBoundingClientRect();
+        //TODO - look into why this doesn't work for the y pos??? Maybe we are relative
+        const origin_data = this.canvas.getBoundingClientRect();
 
-            this.state = {
-                x: -width / 2, y: 0, orig_x: origin_data.x, orig_y: 0,
-                width: width, height: height,
-                step: 1,
-                speed: speed,
-                sliding: slide,
-                kernel: kernel
+
+        this.setState({
+            x:0, y: 0, orig_x: origin_data.x, orig_y: 0,
+            width: _.size(kernel), height: _.size(kernel),
+            boxWidth: size == BOX_SIZE_OPTIONS.FULL_IMAGE ? 11 : size,
+            boxHeight: size == BOX_SIZE_OPTIONS.FULL_IMAGE ? this.canvas.height + 1 : size,
+            step: 1,
+            speed: speed,
+            sliding: slide,
+            kernel: kernel
+        }, ()=>{
+            if (!simple_matrix){
+                this.simple_matrix = this.loadImage();
             }
 
             if (slide){
-                // TODO - wait for image to load into canvas
-                _.delay(()=>{this.loadImage()}, 400);
-                _.delay(()=>{this.slide()}, 700);
-
+                this.slide()
             }
-        }
+        })
+
 
     }
 
@@ -48,24 +77,24 @@ class SlidingWindow extends Component {
         let image = []
 
         let row = []
-        let padded_row = Array(this.state.width / 2).fill(0);
+        let padded_row = Array(_.floor(this.state.width / 2)).fill(0);
         for (var i=0, j=0; i<data.length; i+=4, j+=1) {
             row[j] = data[i];
 
             if (j == this.canvas.width - 1){
-                image.push([...padded_row, ...row]);
+                image.push([...padded_row, ...row, ...padded_row]);
                 row = [];
                 j = -1;
             }
         }
 
-        let zero_padded_height = Array(this.state.width / 2).fill(0).map(() => new Array(this.canvas.width).fill(0));
-        this.simple_matrix = [...zero_padded_height, ...image]
+        let zero_padded_height = Array(_.floor(this.state.width / 2)).fill(0).map(() => new Array(_.size(image[0])).fill(0));
+        return [...zero_padded_height, ...image, ...zero_padded_height]
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        const { slide } = this.props;
-        const { slide : was_sliding } = prevProps;
+        const { slide, filter_id, image_id } = this.props;
+        const { slide : was_sliding, filter_id : previous_filter_id, image_id : previous_image_id} = prevProps;
 
         if (slide && !was_sliding){
             this.setState({x: 0, y: 0})
@@ -73,15 +102,32 @@ class SlidingWindow extends Component {
         }else if(!slide && !!was_sliding){
            this.stop_sliding()
         }
+
+        if(filter_id !== previous_filter_id){
+            this.set_up();
+        }else if(image_id !== previous_image_id){
+            this.set_up();
+        }
     }
 
     stop_sliding(){
+        const { onFinishedFilter } = this.props;
+
         clearInterval(this.slide_interval);
+
+        if(_.isFunction(onFinishedFilter)){
+            onFinishedFilter(this.simple_matrix, this.loadImage())
+        }
+
         this.setState({
             sliding: false,
             x: this.state.orig_x,
-            y: this.state.orig_y
+            y: this.state.orig_y,
+            filter_index: 0,
         })
+
+
+
     }
     slide(){
         this.slide_interval = setInterval(()=>{
@@ -91,21 +137,21 @@ class SlidingWindow extends Component {
             let new_y = this.state.y;
 
             if (this.state.x == this.canvas.width){
-                new_x = this.state.orig_x - this.state.width/2;
-                if (new_y  + this.state.height <= this.canvas.height ){
-                    new_y += this.state.height;
+                new_x = this.state.orig_x - _.floor(this.state.width/2);
+                if (new_y  + this.state.boxHeight <= this.canvas.height ){
+                    new_y += this.state.boxHeight;
                 }else{
-                    return this.stop_sliding();
+                    return this.stop_sliding(true);
                 }
             }else{
                 new_x = this.state.x + this.state.step;
             }
 
-            const ys = _.range(this.state.y, this.state.y + this.state.height);
+            const ys = _.range(this.state.y, this.state.y + this.state.boxHeight);
 
             //_.range(_.max([0 ,this.state.y - _.floor(this.state.height / 2)]), _.min([this.state.y + _.floor(this.state.height / 2), this.canvas.height -1]));
             _.map(ys, (y)=>{
-                this.correlate(this.state.x + this.state.width/2, y, this.state.width, this.canvas.width, this.canvas.height, this.state.step, this.state.kernel);
+                this.correlate(this.state.x , y, this.state.width, this.canvas.width, this.canvas.height, this.state.step, this.state.kernel);
             })
 
             this.setState({
@@ -181,15 +227,23 @@ class SlidingWindow extends Component {
     }
 
     render() {
-        const { image_id } = this.props;
+        const { children } = this.props;
+
+        if (_.get(this.state, 'orig_x') === undefined){
+            return (<div>{children}</div>)
+        }
+
         return (
+            <div>
             <div
                 className={'sliding-window'}
                 style={{
-                    "transform": `translate3d(${this.state.orig_x + this.state.x}px, ${this.state.orig_y + this.state.y}px, 0px)`,
-                    "width": `${this.state.width}px`, "height": `${this.state.height}px`
+                    "transform": `translate3d(${this.state.orig_x + this.state.x - this.state.boxWidth/2}px, ${this.state.orig_y + this.state.y}px, 0px)`,
+                    "width": `${this.state.boxWidth}px`, "height": `${this.state.boxHeight}px`
                 }}
             >
+            </div>
+                {children}
 
             </div>
         );

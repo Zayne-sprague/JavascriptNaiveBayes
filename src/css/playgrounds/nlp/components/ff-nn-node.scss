@@ -1,0 +1,74 @@
+.ff-nn-node-container{
+
+  &:hover{
+    .ff-nn-node{
+      width: 200px;
+      height:200px;
+
+      .activation_weight{
+        opacity: 1;
+      }
+    }
+  }
+
+  .ff-nn-node{
+    width: 32px;
+    height: 32px;
+
+    margin: 0 auto;
+
+    border-radius: 50%;
+    border: 1px solid black;
+
+    background-color: white;
+
+    position:relative;
+
+    transition: all 0.25s ease-in-out;
+
+    &.correct_label{
+      border-color: orangered;
+    }
+
+
+    .activation_weight{
+
+      top: calc(50% - 40px);
+      width: 100%;
+
+      position: absolute;
+      z-index: 13;
+      color: black;
+      text-align: center;
+      height: 100%;
+
+      opacity: 0;
+      transition: opacity 0.33s linear;
+    }
+
+    .inside-node{
+      background-color: red;
+      width:100%;
+      height: 100%;
+      border-radius: 50%;
+
+      position:absolute;
+    }
+
+    .label{
+      top: calc(50% - 10px);
+      width: 100%;
+
+      text-overflow: ellipsis;
+      overflow:hidden;
+      white-space: pre-wrap;
+
+      position: absolute;
+      z-index: 13;
+      opacity: 1;
+      color: black;
+      text-align: center;
+      height: 100%;
+    }
+  }
+}
