@@ -10,13 +10,13 @@ class FfNeuralNetwork extends Component {
     constructor(props){
         super(props);
 
-        const { layers, layer_structure, max_node_per_layer=25, min_node_per_layer=3, inputs=['a1', 'a2', 'b1', 'b2'], outputs=['bit_1', 'bit_2'], X, Y }  = this.props;
+        const { layers, layer_structure, max_node_per_layer=25, min_node_per_layer=10, inputs=['a1', 'a2', 'b1', 'b2'], outputs=['bit_1', 'bit_2'], X, Y }  = this.props;
 
         this.inputs = inputs;
         this.outputs = outputs;
 
         const random_weights = (layer_size, next_layer_size) => {
-            return _.map(_.range(layer_size), (n)=>{ return _.map(_.range(next_layer_size), (i)=>{ return Math.random() })})
+            return _.map(_.range(layer_size), (n)=>{ return _.map(_.range(next_layer_size), (i)=>{ return Math.random() - 0.5 })})
         }
 
         let ls = {
@@ -40,6 +40,7 @@ class FfNeuralNetwork extends Component {
             }
 
             ls[k]['weights'] = random_weights(ls[`${i}`]['size'], ls[`${i+1}`]['size'])
+            ls[k]['weight_gradients'] = _.map(_.range(ls[`${i}`]['size']), n=>{ return _.map(_.range( ls[`${i+1}`]['size'], (i)=>{ return 0}))})
         })
 
         this.state = {
@@ -52,7 +53,7 @@ class FfNeuralNetwork extends Component {
     componentDidMount(){
         const { X } = this.props;
         if (X){
-            this.propagateForward();
+            this.oneExample();
         }
     }
 
@@ -60,56 +61,95 @@ class FfNeuralNetwork extends Component {
         return 1/(1+Math.pow(Math.E, -t));
     }
 
-    propagateForward(){
-        const { X, inputs, Y, outputs } = this.props;
-        const { layer_structure } = this.state;
+    d_sigmoid(t){
+        let dt = this.sigmoid(t);
+        return dt * ( 1 - this.sigmoid(dt) )
+    }
+
+    oneExample(){
+        const { X, Y } = this.props;
 
         // we will overwrite the entire layer structure (not optimal but easier)
         let ls = this.resetActivations();
 
-        let activations = [];
-        let weights = [];
+        let ans = this.propagateForward(ls, X, Y)
+
+        this.setState({layer_structure: _.get(ans, 'ls'), loss: _.get(ans, 'loss')})
+
+    }
+
+    runBatch(){
+        const { batch_examples } = this.props;
+
+        let avg_loss = 0;
+        let last_loss = 0;
+        let trend_average = 0;
+        let trend_iteration = 1;
+        let ls = this.state.layer_structure;
+        _.map(batch_examples, (ex, i)=>{
+            ls = this.resetActivations();
+            let ans = this.propagateForward(ls, ex['X'], ex['Y'])
+            ls = _.get(ans, 'ls');
+
+            // ls = this.backPropagation(ls);
+            ls = this.costGradient(ls);
+
+            avg_loss += _.get(ans, 'loss');
+
+            if (i % 50 == 0 && i>0){
+                ls = this.backPropagation(ls);
+
+                trend_average = ((avg_loss / 50) - last_loss) / (trend_iteration);
+                trend_iteration += 1;
+                last_loss = (avg_loss/ 50);
+                avg_loss = 0;
+            }
+
+        })
+
+        // avg_loss = avg_loss / _.size(batch_examples)
+
+
+        // weight deltas
+        let deltas  = _.map(ls[1]['weights'], (n, ni)=>{
+            return _.map(n, (w, wi)=>{
+                return this.state.layer_structure[1].weights[ni][wi] - w
+            })
+        })
+
+        this.setState({layer_structure: ls, loss: trend_average})
+    }
+
+    propagateForward(ls, X, Y){
+        const { inputs, outputs } =  this.props;
+
+        let activations = _.map(inputs, (input, i)=>{ return _.includes(X, input) ? 1.0 : 0.0 });
         _.map(_.keys(ls), (layer, i)=>{
             let temp_activations = [];
-            let temp_weights = []
             // inputs
             if (i == 0){
-                _.map(X, (input)=>{
-                    let ind = _.findIndex(inputs, (n)=>{return n == input});
-                    if (ind > -1){
-                        ls['0']['nodes'][ind] = 1.0;
-                        activations.push(1.0);
-                        weights.push(ls['0']['weights'][ind])
-                    }
-
-                })
+               _.map(activations, (n, i)=>{
+                   if (n){
+                       ls['0']['nodes'][i] = 1.0;
+                   }else{
+                       ls['0']['nodes'][i] = 0.0;
+                   }
+               })
 
             }else{
+                let previous_layer = ls[`${i-1}`];
+                let previous_nodes = previous_layer['nodes']
+                let weights = previous_layer['weights']
 
                 _.map(ls[`${i}`]['nodes'], (n, n_i)=>{
-                    let val = n;
-                    _.map(weights, (w, w_i)=>{
-                        let weight = _.get(w, n_i, 0);
-                        let weight_activation = activations[w_i];
+                    let value = 0;
 
-                        val += weight * weight_activation;
+                    _.map(weights, (w, wi)=>{
+                        value += previous_nodes[wi] * _.get(w, n_i);
                     })
 
-                    ls[`${i}`]['nodes'][n_i] = this.sigmoid(val);
-
-                    temp_activations.push(val)
-
-                    if (i != _.size(_.keys(ls)) - 1){
-                        temp_weights.push(ls[`${i}`]['weights'][n_i])
-                    }
-
+                    ls[`${i}`]['nodes'][n_i] = this.sigmoid(value);
                 })
-
-                activations = temp_activations;
-                weights = temp_weights;
-                temp_activations = [];
-                temp_activations = [];
-
             }
 
         })
@@ -138,8 +178,7 @@ class FfNeuralNetwork extends Component {
 
         })
 
-        this.setState({layer_structure: ls, loss: -loss})
-
+        return {ls: ls, loss: -loss}
     }
 
 
@@ -157,11 +196,13 @@ class FfNeuralNetwork extends Component {
     }
 
     componentDidUpdate(prevProps){
-        const { X } = this.props;
-        const { X : prev_X } = prevProps;
+        const { X, batch_examples_id, batch_examples } = this.props;
+        const { X : prev_X, batch_examples_id: pbei  } = prevProps;
 
         if (!_.isEqual(X, prev_X)){
-            this.propagateForward();
+            this.oneExample();
+        }else if(batch_examples_id != pbei && _.size(batch_examples) > 0){
+            this.runBatch();
         }
     }
 
@@ -177,6 +218,70 @@ class FfNeuralNetwork extends Component {
                 }
             </div>
         );
+    }
+
+    costGradient(ls){
+
+        let last_layer_key = _.size(_.keys(ls)) - 1;
+        let correct_labels = ls[last_layer_key]['correct_labels']
+
+        let output_indexes = _.map(correct_labels, (n)=>{ return _.findIndex(ls[last_layer_key]['labels'], (i)=>{return i == n})});
+
+        // init for expected outputs, will change per layer
+        let output = _.map(_.range(_.size(ls[last_layer_key]['labels'])), (n)=>{ return _.includes(output_indexes, n) ? 1.0 : 0.0})
+
+        _.map(_.reverse(_.slice(_.keys(ls), 0, -1)), (layer)=>{
+            let temp_output  = Array(_.size(_.get(ls[layer], 'nodes')));
+            let layer_weights = _.get(ls[layer], 'weights');
+
+            _.map(_.get(ls[layer], 'nodes'), (n, ni)=>{
+                let next_layer = _.get(ls, _.parseInt(layer) + 1);
+                let weights = layer_weights[ni];
+
+                let Al_minus_1 = n;
+
+                //let cost = Math.pow(Al - y, 2);
+                let dC0_aL_minus_one = 0;
+
+                _.map(weights, (w, wi)=>{
+                    let Al = _.get(next_layer, 'nodes')[wi];
+                    let wl = w;
+                    let y = output[wi];
+
+                    let dC0_Al = 2 * (Al - y);
+                    let dAl_Zl = Al * (1 - Al); // derivative of sigmoid
+                    let dZl_Wl = Al_minus_1;
+
+                    let dC0_Wl = dZl_Wl * dAl_Zl * dC0_Al;
+                    ls[layer]['weight_gradients'][ni][wi] += dC0_Wl;
+
+                    dC0_aL_minus_one += wl * dAl_Zl * dC0_Al;
+
+                })
+
+                temp_output[ni] = dC0_aL_minus_one;
+
+            })
+
+            output = temp_output;
+        })
+
+        return ls;
+
+    }
+
+    backPropagation(ls){
+        let learning_rate = 0.1;
+        _.map(_.reverse(_.slice(_.keys(ls), 0, -1)), (layer)=>{
+            _.map(_.get(ls[layer], 'weights'), (n,ni)=>{
+                _.map(n, (w,wi)=>{
+                    ls[layer]['weights'][ni][wi] += learning_rate * ls[layer]['weight_gradients'][ni][wi];
+                    ls[layer]['weight_gradients'][ni][wi] = 0;
+                })
+            })
+        })
+
+        return ls;
     }
 
 }
