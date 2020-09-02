@@ -16,12 +16,13 @@ export const NODE_COLORS = {
 class FfNnNode extends Component {
 
     render() {
-        const { className, activation_weight=0.0, shape, color, label, correct_label } = this.props;
+        const { className, activation_weight=0.0, shape, color, label, correct_label, bias_weight } = this.props;
         return (
             <div className={'ff-nn-node-container'}>
                 <div className={join('ff-nn-node', className, {'square': shape==NODE_SHAPES.square, 'correct_label': !!correct_label})}>
                     {label ? <div className={'label'}>{label}</div> : null }
                     <div className={'activation_weight'}>{_.floor(activation_weight * 100)}%</div>
+                    {bias_weight ? <div className={'bias-weight'}>{bias_weight.toFixed(5)}</div> : null }
                     <div className={join('inside-node')} style={{'opacity': activation_weight, 'backgroundColor': color}}/>
                 </div>
             </div>

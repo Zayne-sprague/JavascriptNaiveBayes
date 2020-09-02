@@ -10,8 +10,8 @@ class FeedforwardNetwork extends Component {
         super(props);
 
         this.state = {
-            X: ['a1', 'b1', 'b2'],
-            Y: ['c1'],
+            X: ['the', 'movie', 'was', 'good'],
+            Y: ['+'],
             batch_examples: [],
             batch_examples_id: -1
         }
@@ -20,9 +20,11 @@ class FeedforwardNetwork extends Component {
     render() {
         const { controls } = this.props;
 
-        let inputs = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8',
-                      'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'  ];
-        let outputs = ['0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+        // let inputs = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8',
+        //               'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'  ];
+        // let outputs = ['0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'];
+        let inputs = ['good', 'great', 'awesome', 'the', 'movie', 'was', 'bad', 'terrible', 'awful']
+        let outputs = ['+', '-']
 
         return (
             <div>
@@ -43,7 +45,7 @@ class FeedforwardNetwork extends Component {
     }
 
     makeBatch(n=100){
-        let ex = _.map(_.range(500), (i)=>{return this.curate_example()})
+        let ex = _.map(_.range(1000), (i)=>{return this.curate_example()})
         this.setState({
             batch_examples: ex,
             batch_examples_id: uuidv4()
@@ -51,6 +53,51 @@ class FeedforwardNetwork extends Component {
     }
 
     curate_example(){
+        let X = [];
+        let Y = [];
+        let neutral = ['the', 'movie', 'was']
+        let bad = ['bad', 'terrible', 'awful']
+        let good = ['good', 'great', 'awesome']
+
+        const isa_good = Math.random() > 0.5;
+        const sent_len = _.max([1, _.floor(Math.random() * 3)]);
+        const neut_len = _.max([1, _.floor(Math.random() * 3)]);
+
+        _.map(_.range(neut_len), n=>{
+            const item = neutral[_.floor(Math.random() * 2.99)]
+            if (!_.includes(X, item)){
+                X.push(item);
+            }
+        })
+
+
+        if (isa_good){
+            _.map(_.range(sent_len), n=>{
+                const item = good[_.floor(Math.random() * 2.99)]
+                if (!_.includes(X, item)){
+                    X.push(item);
+                }
+            })
+
+            Y.push("+");
+        }else{
+            _.map(_.range(sent_len), n=>{
+                const item = bad[_.floor(Math.random() * 2.99)]
+                if (!_.includes(X, item)){
+                    X.push(item);
+                }
+            })
+
+            Y.push("-");
+        }
+
+        return {
+            X: X,
+            Y: Y
+        }
+    }
+
+    a_curate_example(){
         let X = [];
         let Y = [];
 

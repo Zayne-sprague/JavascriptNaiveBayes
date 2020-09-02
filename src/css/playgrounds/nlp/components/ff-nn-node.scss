@@ -7,6 +7,9 @@
       .activation_weight{
         opacity: 1;
       }
+      .bias-weight{
+        opacity: 1;
+      }
     }
   }
 
@@ -33,6 +36,20 @@
     .activation_weight{
 
       top: calc(50% - 40px);
+      width: 100%;
+
+      position: absolute;
+      z-index: 13;
+      color: black;
+      text-align: center;
+      height: 100%;
+
+      opacity: 0;
+      transition: opacity 0.33s linear;
+    }
+
+    .bias-weight{
+      top: calc(50% + 20px);
       width: 100%;
 
       position: absolute;

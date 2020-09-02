@@ -14,9 +14,15 @@ class FfNeuralNetwork extends Component {
 
         this.inputs = inputs;
         this.outputs = outputs;
+        this.learning_rate = 0.05;
 
         const random_weights = (layer_size, next_layer_size) => {
-            return _.map(_.range(layer_size), (n)=>{ return _.map(_.range(next_layer_size), (i)=>{ return Math.random() - 0.5 })})
+            return _.map(_.range(layer_size), (n)=>{ return _.map(_.range(next_layer_size), (i)=>{
+                // if (Math.random() < 0.75){
+                //     return 0;
+                // }
+                return Math.random() - 0.5
+            })})
         }
 
         let ls = {
@@ -40,7 +46,10 @@ class FfNeuralNetwork extends Component {
             }
 
             ls[k]['weights'] = random_weights(ls[`${i}`]['size'], ls[`${i+1}`]['size'])
-            ls[k]['weight_gradients'] = _.map(_.range(ls[`${i}`]['size']), n=>{ return _.map(_.range( ls[`${i+1}`]['size'], (i)=>{ return 0}))})
+            ls[k]['weight_gradients'] = _.map(_.range(ls[`${i}`]['size']), n=>{ return _.map(_.range( ls[`${i+1}`]['size']), (i)=>{ return 0})})
+            ls[`${i+1}`]['bias_weights'] = _.map(_.range(ls[`${i+1}`]['size']), n=>{ return Math.random() - 0.5 })
+            ls[`${i+1}`]['bias_gradients'] = _.map(_.range(ls[`${i+1}`]['size']), n=>{ return 0 })
+
         })
 
         this.state = {
@@ -87,7 +96,7 @@ class FfNeuralNetwork extends Component {
         let trend_iteration = 1;
         let ls = this.state.layer_structure;
         _.map(batch_examples, (ex, i)=>{
-            ls = this.resetActivations();
+            ls = this.resetActivations(ls);
             let ans = this.propagateForward(ls, ex['X'], ex['Y'])
             ls = _.get(ans, 'ls');
 
@@ -96,7 +105,7 @@ class FfNeuralNetwork extends Component {
 
             avg_loss += _.get(ans, 'loss');
 
-            if (i % 50 == 0 && i>0){
+            if (i % 20 == 0 && i>0){
                 ls = this.backPropagation(ls);
 
                 trend_average = ((avg_loss / 50) - last_loss) / (trend_iteration);
@@ -107,8 +116,7 @@ class FfNeuralNetwork extends Component {
 
         })
 
-        // avg_loss = avg_loss / _.size(batch_examples)
-
+        ls = this.backPropagation(ls);
 
         // weight deltas
         let deltas  = _.map(ls[1]['weights'], (n, ni)=>{
@@ -140,6 +148,7 @@ class FfNeuralNetwork extends Component {
                 let previous_layer = ls[`${i-1}`];
                 let previous_nodes = previous_layer['nodes']
                 let weights = previous_layer['weights']
+                let biases = ls[`${i}`]['bias_weights'];
 
                 _.map(ls[`${i}`]['nodes'], (n, n_i)=>{
                     let value = 0;
@@ -148,7 +157,7 @@ class FfNeuralNetwork extends Component {
                         value += previous_nodes[wi] * _.get(w, n_i);
                     })
 
-                    ls[`${i}`]['nodes'][n_i] = this.sigmoid(value);
+                    ls[`${i}`]['nodes'][n_i] = this.sigmoid(value + biases[n_i] );
                 })
             }
 
@@ -165,7 +174,7 @@ class FfNeuralNetwork extends Component {
         })
 
         _.map(ls[last_layer_key]['nodes'], (node, i)=>{
-            ls[last_layer_key]['nodes'][i] = Math.exp(node) / total_probability;
+            ls[last_layer_key]['nodes'][i] = (Math.exp(node) / total_probability);
         })
 
         let loss = 0;
@@ -182,8 +191,8 @@ class FfNeuralNetwork extends Component {
     }
 
 
-    resetActivations(){
-        let ls = _.cloneDeep(this.state.layer_structure);
+    resetActivations(_ls){
+        let ls = _.cloneDeep(_ls || this.state.layer_structure);
 
         _.map(_.keys(ls), (layer, i)=>{
             _.map(ls[`${i}`]['nodes'], (n, n_i)=>{
@@ -253,13 +262,16 @@ class FfNeuralNetwork extends Component {
                     let dZl_Wl = Al_minus_1;
 
                     let dC0_Wl = dZl_Wl * dAl_Zl * dC0_Al;
-                    ls[layer]['weight_gradients'][ni][wi] += dC0_Wl;
+                    let dC0_Bl = dAl_Zl * dC0_Al;
+
+                    ls[layer]['weight_gradients'][ni][wi] +=  dC0_Wl;
+                    ls[`${_.parseInt(layer) + 1}`]['bias_gradients'][wi] += dC0_Bl;
 
                     dC0_aL_minus_one += wl * dAl_Zl * dC0_Al;
 
                 })
 
-                temp_output[ni] = dC0_aL_minus_one;
+                temp_output[ni] = Al_minus_1 - this.learning_rate * dC0_aL_minus_one;
 
             })
 
@@ -267,15 +279,17 @@ class FfNeuralNetwork extends Component {
         })
 
         return ls;
-
     }
 
     backPropagation(ls){
-        let learning_rate = 0.1;
+        let learning_rate = this.learning_rate;
         _.map(_.reverse(_.slice(_.keys(ls), 0, -1)), (layer)=>{
             _.map(_.get(ls[layer], 'weights'), (n,ni)=>{
+                ls[`${_.parseInt(layer) + 1}`]['bias_weights'][ni] -= this.learning_rate * ls[`${_.parseInt(layer) + 1}`]['bias_gradients'][ni];
+                ls[`${_.parseInt(layer) + 1}`]['bias_gradients'][ni] = 0;
+
                 _.map(n, (w,wi)=>{
-                    ls[layer]['weights'][ni][wi] += learning_rate * ls[layer]['weight_gradients'][ni][wi];
+                    ls[layer]['weights'][ni][wi] -= learning_rate * ls[layer]['weight_gradients'][ni][wi];
                     ls[layer]['weight_gradients'][ni][wi] = 0;
                 })
             })
